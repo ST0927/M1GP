@@ -1,0 +1,42 @@
+function doPost(e) { 
+  const props = PropertiesService.getScriptProperties()
+  const event = JSON.parse(e.postData.contents).events[0]
+  let userMessage = event.message.text
+  if (userMessage === undefined) {
+    // スタンプなどが送られてきた時
+    userMessage = 'やあ！'
+  }
+
+  const requestOptions = {
+    "method": "post",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer "+ props.getProperty('OPENAI_APIKEY')
+    },
+    "payload": JSON.stringify({
+      "model": "gpt-3.5-turbo",
+      "messages": [
+         {"role": "user", "content": userMessage}
+      ]
+    })
+  }
+  const response = UrlFetchApp.fetch("https://api.openai.com/v1/chat/completions", requestOptions)
+  const responseText = response.getContentText();
+  const json = JSON.parse(responseText);
+  const text = json['choices'][0]['message']['content'].trim();
+
+  UrlFetchApp.fetch('https://api.line.me/v2/bot/message/reply', {
+    'headers': {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': 'Bearer ' + props.getProperty('LINE_ACCESS_TOKEN'),
+    },
+    'method': 'post',
+    'payload': JSON.stringify({
+      'replyToken': event.replyToken,
+      'messages': [{
+        'type': 'text',
+        'text': text,
+      }]
+    })
+  })
+}
